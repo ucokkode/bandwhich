@@ -17,7 +17,7 @@ use ::crossterm::terminal;
 use ::pnet::datalink::{DataLinkReceiver, NetworkInterface};
 use ::std::collections::HashMap;
 use ::std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-use ::std::sync::{Arc, Mutex};
+use ::std::sync::Arc;
 use ::std::thread;
 use ::std::thread::park_timeout;
 use ::tui::backend::Backend;
@@ -133,8 +133,11 @@ where
 
     let raw_mode = opts.raw;
 
-    let network_utilization = Arc::new(Mutex::new(Utilization::new()));
-    let ui = Arc::new(Mutex::new(Ui::new(terminal_backend, opts.render_opts)));
+    let network_utilization = Arc::new(parking_lot::const_mutex(Utilization::new()));
+    let ui = Arc::new(parking_lot::const_mutex(Ui::new(
+        terminal_backend,
+        opts.render_opts,
+    )));
 
     let display_handler = thread::Builder::new()
         .name("display_handler".to_string())
@@ -151,7 +154,7 @@ where
             move || {
                 while running.load(Ordering::Acquire) {
                     let render_start_time = Instant::now();
-                    let utilization = { network_utilization.lock().unwrap().clone_and_reset() };
+                    let utilization = { network_utilization.lock().clone_and_reset() };
                     let OpenSockets { sockets_to_procs } = get_open_sockets();
                     let mut ip_to_host = IpTable::new();
                     if let Some(dns_client) = dns_client.as_mut() {
@@ -165,7 +168,7 @@ where
                         dns_client.resolve(unresolved_ips);
                     }
                     {
-                        let mut ui = ui.lock().unwrap();
+                        let mut ui = ui.lock();
                         let paused = paused.load(Ordering::SeqCst);
                         let ui_offset = ui_offset.load(Ordering::SeqCst);
                         if !paused {
@@ -189,7 +192,7 @@ where
                     }
                 }
                 if !raw_mode {
-                    let mut ui = ui.lock().unwrap();
+                    let mut ui = ui.lock();
                     ui.end();
                 }
             }
@@ -205,7 +208,7 @@ where
 
                 move || {
                     for evt in terminal_events {
-                        let mut ui = ui.lock().unwrap();
+                        let mut ui = ui.lock();
 
                         match evt {
                             Event::Resize(_x, _y) => {
@@ -302,7 +305,7 @@ where
 
                     while running.load(Ordering::Acquire) {
                         if let Some(segment) = sniffer.next() {
-                            network_utilization.lock().unwrap().update(segment);
+                            network_utilization.lock().update(segment);
                         }
                     }
                 })

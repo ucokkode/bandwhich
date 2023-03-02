@@ -14,7 +14,6 @@ pub struct Resolver(TokioAsyncResolver);
 
 impl Resolver {
     pub async fn new(
-        //runtime: Handle,
         dns_server: &Option<Ipv4Addr>,
     ) -> Result<Self, failure::Error> {
         let resolver = match dns_server {

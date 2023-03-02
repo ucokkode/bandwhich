@@ -2,7 +2,7 @@ use crate::network::dns::{resolver::Lookup, IpTable};
 use std::{
     collections::HashSet,
     net::IpAddr,
-    sync::{Arc, Mutex},
+    sync::Arc,
     thread::{Builder, JoinHandle},
 };
 use tokio::{
@@ -15,8 +15,8 @@ type PendingAddrs = HashSet<IpAddr>;
 const CHANNEL_SIZE: usize = 1_000;
 
 pub struct Client {
-    cache: Arc<Mutex<IpTable>>,
-    pending: Arc<Mutex<PendingAddrs>>,
+    cache: Arc<parking_lot::Mutex<IpTable>>,
+    pending: Arc<parking_lot::Mutex<PendingAddrs>>,
     tx: Option<Sender<Vec<IpAddr>>>,
     handle: Option<JoinHandle<()>>,
 }
@@ -26,8 +26,8 @@ impl Client {
     where
         R: Lookup + Send + Sync + 'static,
     {
-        let cache = Arc::new(Mutex::new(IpTable::new()));
-        let pending = Arc::new(Mutex::new(PendingAddrs::new()));
+        let cache = Arc::new(parking_lot::const_mutex(IpTable::new()));
+        let pending = Arc::new(parking_lot::const_mutex(PendingAddrs::new()));
         let (tx, mut rx) = mpsc::channel::<Vec<IpAddr>>(CHANNEL_SIZE);
 
         let handle = Builder::new().name("resolver".into()).spawn({
@@ -39,16 +39,16 @@ impl Client {
 
                     while let Some(ips) = rx.recv().await {
                         for ip in ips {
-                            tokio::task::spawn({
+                            tokio::spawn({
                                 let resolver = resolver.clone();
                                 let cache = cache.clone();
                                 let pending = pending.clone();
 
                                 async move {
                                     if let Some(name) = resolver.lookup(ip).await {
-                                        cache.lock().unwrap().insert(ip, name);
+                                        cache.lock().insert(ip, name);
                                     }
-                                    pending.lock().unwrap().remove(&ip);
+                                    pending.lock().remove(&ip);
                                 }
                             });
                         }
@@ -69,7 +69,7 @@ impl Client {
         // Remove ips that are already being resolved
         let ips = ips
             .into_iter()
-            .filter(|ip| self.pending.lock().unwrap().insert(*ip))
+            .filter(|ip| self.pending.lock().insert(*ip))
             .collect::<Vec<_>>();
 
         if !ips.is_empty() {
@@ -79,7 +79,7 @@ impl Client {
     }
 
     pub fn cache(&mut self) -> IpTable {
-        let cache = self.cache.lock().unwrap();
+        let cache = self.cache.lock();
         cache.clone()
     }
 }

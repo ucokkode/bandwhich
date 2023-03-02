@@ -133,11 +133,11 @@ where
             format!(
                 "\n\n{}: {} \nAdditional Errors: \n {}",
                 interface_name,
-                eperm_message(),
+                EPERM_MESSAGE,
                 other_errors
             )
         } else {
-            format!("\n\n{}: {}", interface_name, eperm_message())
+            format!("\n\n{}: {}", interface_name, EPERM_MESSAGE)
         }
     } else {
         let other_errors = errors
@@ -153,7 +153,7 @@ pub fn get_input(
     dns_server: &Option<Ipv4Addr>,
 ) -> Result<OsInputOutput, failure::Error> {
     let network_interfaces = if let Some(name) = interface_name {
-        match get_interface(&name) {
+        match get_interface(name) {
             Some(interface) => vec![interface],
             None => {
                 failure::bail!("Cannot find interface {}", name);
@@ -230,15 +230,12 @@ pub fn get_input(
     })
 }
 
-#[inline]
 #[cfg(any(target_os = "macos", target_os = "freebsd"))]
-fn eperm_message() -> &'static str {
-    "Insufficient permissions to listen on network interface(s). Try running with sudo."
-}
+const EPERM_MESSAGE : &'static str  =
+    "Insufficient permissions to listen on network interface(s). Try running with sudo.";
 
-#[inline]
 #[cfg(target_os = "linux")]
-fn eperm_message() -> &'static str {
+const EPERM_MESSAGE : &str  =
     r#"
     Insufficient permissions to listen on network interface(s). You can work around
     this issue like this:
@@ -247,11 +244,9 @@ fn eperm_message() -> &'static str {
 
     * Build a `setcap(8)` wrapper for `bandwhich` with the following rules:
         `cap_sys_ptrace,cap_dac_read_search,cap_net_raw,cap_net_admin+ep`
-    "#
-}
+    "#;
 
-#[inline]
 #[cfg(any(target_os = "windows"))]
-fn eperm_message() -> &'static str {
-    "Insufficient permissions to listen on network interface(s). Try running with administrator rights."
-}
+const EPERM_MESSAGE : &str  =
+    "Insufficient permissions to listen on network interface(s). Try running with administrator rights.";
+
