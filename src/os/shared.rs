@@ -151,12 +151,12 @@ pub fn get_input(
     interface_name: &Option<String>,
     resolve: bool,
     dns_server: &Option<Ipv4Addr>,
-) -> Result<OsInputOutput, failure::Error> {
+) -> Result<OsInputOutput, anyhow::Error> {
     let network_interfaces = if let Some(name) = interface_name {
         match get_interface(name) {
             Some(interface) => vec![interface],
             None => {
-                failure::bail!("Cannot find interface {}", name);
+                anyhow::bail!("Cannot find interface {}", name);
                 // the homebrew formula relies on this wording, please be careful when changing
             }
         }
@@ -196,10 +196,10 @@ pub fn get_input(
     if available_network_frames.is_empty() {
         let all_errors = collect_errors(network_frames.clone());
         if !all_errors.is_empty() {
-            failure::bail!(all_errors);
+            anyhow::bail!(all_errors);
         }
 
-        failure::bail!("Failed to find any network interface to listen on.");
+        anyhow::bail!("Failed to find any network interface to listen on.");
     }
 
     let keyboard_events = Box::new(TerminalEvents);
@@ -209,7 +209,7 @@ pub fn get_input(
         let resolver =
             match runtime.block_on(dns::Resolver::new(dns_server)) {
                 Ok(resolver) => resolver,
-                Err(err) => failure::bail!(
+                Err(err) => anyhow::bail!(
                     "Could not initialize the DNS resolver. Are you offline?\n\nReason: {:?}",
                     err
                 ),

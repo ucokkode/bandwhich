@@ -24,7 +24,6 @@ ipnetwork = "0.20.0"
 tui = { version = "0.19", default-features = false, features = ["crossterm"] }
 crossterm = "0.26.0"                                                           #
 structopt = "0.3"
-failure = "0.1.8"
 chrono = "0.4"
 regex = "1.7.1"
 lazy_static = "1.4.0"
@@ -34,6 +33,11 @@ async-trait = "0.1.64"
 unicode-width = "0.1.10"
 #resolv-conf = "0.7.0"
 parking_lot = "0.12.1"
+anyhow = "1.0.71"
+thiserror = "1.0.40"
+
+[profile.release]
+lto = true
 
 [target.'cfg(target_os="windows")'.dependencies]
 netstat2 = "0.9.1"
